@@ -1,0 +1,1194 @@
+<!DOCTYPE html>
+<html lang="lo">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ຮ້ານອາຫານແຊ່ແຂງນາງແສນ</title>
+    <script src="https://cdn.tailwindcss.com">
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Lao:wght@300;400;600;700&display=swap" rel="stylesheet" />
+    <style>
+        body {
+            font-family: 'Noto Sans Lao', sans-serif;
+        }
+        .product-card {
+            transition: all 0.2s;
+        }
+        .product-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+        .loading {
+            text-align: center;
+            padding: 50px;
+            font-size: 18px;
+            color: #666;
+        }
+        .stock-manager {
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        .stock-manager::-webkit-scrollbar {
+            width: 6px;
+        }
+        .stock-manager::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 8px;
+        }
+        .btn-filter.active {
+            background-color: #2563eb !important;
+            color: white !important;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        @media (max-width: 640px) {
+            .btn-filter {
+                font-size: 0.7rem;
+                padding: 0.25rem 0.75rem;
+            }
+        }
+        .cart-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 1rem;
+        }
+        .cart-modal {
+            background: white;
+            border-radius: 1.5rem;
+            max-width: 500px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 1.5rem;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        .cart-modal::-webkit-scrollbar {
+            width: 4px;
+        }
+        .cart-modal::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 8px;
+        }
+        .cart-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .cart-item:last-child {
+            border-bottom: none;
+        }
+        .qty-btn {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1rem;
+            background: #e2e8f0;
+            color: #1e293b;
+            cursor: pointer;
+            transition: 0.15s;
+            border: none;
+        }
+        .qty-btn:hover {
+            background: #cbd5e1;
+        }
+        .qty-btn.minus:hover {
+            background: #fecaca;
+            color: #b91c1c;
+        }
+        .qty-btn.plus:hover {
+            background: #bbf7d0;
+            color: #166534;
+        }
+        .cart-badge {
+            background: #ef4444;
+            color: white;
+            font-size: 0.7rem;
+            font-weight: 700;
+            border-radius: 999px;
+            padding: 0.1rem 0.5rem;
+            margin-left: 0.25rem;
+            min-width: 1.2rem;
+            text-align: center;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 relative min-h-screen pb-20">
+
+    <!-- ========== NAVBAR ========== -->
+    <nav class="bg-blue-600 text-white p-4 shadow-md sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto flex flex-wrap justify-between items-center gap-2">
+            <h1 class="text-2xl font-bold">sean seafood</h1>
+            <div class="flex flex-wrap items-center gap-2">
+                <button onclick="toggleCart()" class="relative bg-blue-700 hover:bg-blue-800 text-white px-3 py-1.5 rounded-full text-sm font-semibold transition flex items-center gap-1">
+                    🛒 <span id="cart-count" class="cart-badge">0</span>
+                </button>
+                <a href="https://wa.me/8562051628289" target="_blank" class="bg-emerald-500 text-white px-3 py-1.5 rounded-full text-sm font-semibold hover:bg-emerald-600 transition">WhatsApp</a>
+                <a href="https://www.facebook.com/98thip" target="_blank" class="bg-blue-700 text-white px-3 py-1.5 rounded-full text-sm font-semibold hover:bg-blue-800 transition">📘 ເພຈ</a>
+                <button onclick="showStockManager()" class="bg-yellow-500 text-white px-3 py-1.5 rounded-full text-sm font-semibold hover:bg-yellow-600 transition">📦 ສະຕອກ</button>
+                <button onclick="resetFilterAndSearch()" class="bg-red-500 text-white px-3 py-1.5 rounded-full text-sm font-semibold hover:bg-red-600 transition">🔄 ຣີເຊັດ</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ========== HEADER BANNER ========== -->
+    <header class="w-full">
+        <img src="https://i.imgur.com/FjF89o1.jpeg" 
+             alt="ຮ້ານອາຫານແຊ່ແຂງນາງແສນ" 
+             class="w-full h-auto object-cover">
+    </header>
+
+    <!-- ========== ສະໄລ້ແນະນຳເມນູ ========== -->
+    <section class="max-w-6xl mx-auto px-4 mt-8">
+        <div class="relative rounded-2xl overflow-hidden shadow-lg" id="recommend-slider">
+            <div id="slider-track" class="flex transition-transform duration-500 ease-in-out">
+                <div class="min-w-full flex flex-col md:flex-row bg-white">
+                    <img src="https://i.imgur.com/PP7yZFk.jpeg" alt="ກຸ້ງເດັ້ງ" class="w-full md:w-1/2 h-64 md:h-80 object-cover">
+                    <div class="p-6 md:p-8 flex flex-col justify-center flex-1">
+                        <span class="text-xs bg-cyan-100 text-cyan-700 font-semibold px-2.5 py-0.5 rounded-full w-fit">ແນະນຳອາຫານທະເລ</span>
+                        <h3 class="text-2xl font-bold mt-3">ກຸ້ງເດັ້ງ 51/60</h3>
+                        <p class="text-slate-500 mt-2">ກຸ້ງເດັ້ງແຊ່ແຂງ ເນື້ອແໜ້ນໆ</p>
+                        <div class="text-xl font-bold text-blue-600 mt-3">820,000 ກີບ / 10ກິໂລ</div>
+                        <button onclick="addToCart('ກຸ້ງເດັ້ງ', 820000, '10ກິໂລ')" class="mt-4 bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-lg text-sm font-medium text-center w-fit px-6 transition">➕ ເພີ່ມໃສ່ກະຕ່າ</button>
+                    </div>
+                </div>
+                <div class="min-w-full flex flex-col md:flex-row bg-white">
+                    <img src="https://i.imgur.com/pqauGvG.jpeg" alt="ປາແຊວມອນແຊ່ແຂງ" class="w-full md:w-1/2 h-64 md:h-80 object-cover">
+                    <div class="p-6 md:p-8 flex flex-col justify-center flex-1">
+                        <span class="text-xs bg-cyan-100 text-cyan-700 font-semibold px-2.5 py-0.5 rounded-full w-fit">ແນະນຳອາຫານທະເລ</span>
+                        <h3 class="text-2xl font-bold mt-3">ປາແຊວມອນແຊ່ແຂງ</h3>
+                        <p class="text-slate-500 mt-2">ເໝາະສຳລັບເມນູສຸກ ສະເຕັກ ປີ້ງ ເຂົ້າອົບແຊວມອນ ທອດ</p>
+                        <div class="text-xl font-bold text-blue-600 mt-3">320,000 ກີບ / ກິໂລ</div>
+                        <button onclick="addToCart('ປາແຊວມອນແຊ່ແຂງ', 320000, '1ກິໂລ')" class="mt-4 bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-lg text-sm font-medium text-center w-fit px-6 transition">➕ ເພີ່ມໃສ່ກະຕ່າ</button>
+                    </div>
+                </div>
+                <div class="min-w-full flex flex-col md:flex-row bg-white">
+                    <img src="https://i.imgur.com/oPGrgJa.jpeg" alt="ໄສ້ກອກແດງ" class="w-full md:w-1/2 h-64 md:h-80 object-cover">
+                    <div class="p-6 md:p-8 flex flex-col justify-center flex-1">
+                        <span class="text-xs bg-cyan-100 text-cyan-700 font-semibold px-2.5 py-0.5 rounded-full w-fit">ແນະນຳໄສ້ກອກ</span>
+                        <h3 class="text-2xl font-bold mt-3">ໄສ້ກອກແດງ</h3>
+                        <p class="text-slate-500 mt-2">ໄວ້ທອດແຊບໆ</p>
+                        <div class="text-xl font-bold text-blue-600 mt-3">36,000 ກີບ / 1ຖົງ</div>
+                        <button onclick="addToCart('ໄສ້ກອກແດງ ນ້ອຍ', 36000, '1ຖົງ')" class="mt-4 bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-lg text-sm font-medium text-center w-fit px-6 transition">➕ ເພີ່ມໃສ່ກະຕ່າ</button>
+                    </div>
+                </div>
+            </div>
+            <button onclick="changeSlide(-1)" class="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white text-slate-700 w-10 h-10 rounded-full shadow flex items-center justify-center text-xl font-bold">‹</button>
+            <button onclick="changeSlide(1)" class="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white text-slate-700 w-10 h-10 rounded-full shadow flex items-center justify-center text-xl font-bold">›</button>
+            <div class="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2" id="slider-dots">
+                <button onclick="goToSlide(0)" class="slide-dot w-2.5 h-2.5 rounded-full bg-white/60" data-index="0"></button>
+                <button onclick="goToSlide(1)" class="slide-dot w-2.5 h-2.5 rounded-full bg-white/60" data-index="1"></button>
+                <button onclick="goToSlide(2)" class="slide-dot w-2.5 h-2.5 rounded-full bg-white/60" data-index="2"></button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ========== MAIN ========== -->
+    <main class="max-w-6xl mx-auto p-6">
+        <div class="mb-8 flex flex-col md:flex-row gap-4 justify-between items-center">
+            <div class="flex flex-wrap gap-2 justify-center" id="filter-buttons">
+                <button onclick="filterCategory('all')" class="btn-filter bg-blue-600 text-white px-4 py-2 rounded-full text-sm font-medium shadow">ທັງໝົດ</button>
+                <button onclick="filterCategory('เป็ด')" class="btn-filter bg-white text-slate-600 border px-4 py-2 rounded-full text-sm font-medium hover:bg-slate-100">ເປັດ</button>
+                <button onclick="filterCategory('ไก่')" class="btn-filter bg-white text-slate-600 border px-4 py-2 rounded-full text-sm font-medium hover:bg-slate-100">ໄກ່</button>
+                <button onclick="filterCategory('หมู')" class="btn-filter bg-white text-slate-600 border px-4 py-2 rounded-full text-sm font-medium hover:bg-slate-100">ໝູ</button>
+                <button onclick="filterCategory('วัว')" class="btn-filter bg-white text-slate-600 border px-4 py-2 rounded-full text-sm font-medium hover:bg-slate-100">ງົວ</button>
+                <button onclick="filterCategory('ทะเล')" class="btn-filter bg-white text-slate-600 border px-4 py-2 rounded-full text-sm font-medium hover:bg-slate-100">ແຊ່ແຂງ</button>
+                <button onclick="filterCategory('แปรรูป')" class="btn-filter bg-white text-slate-600 border px-4 py-2 rounded-full text-sm font-medium hover:bg-slate-100">ອາຫານແປຮູບ</button>
+                <button onclick="filterCategory('นก')" class="btn-filter bg-white text-slate-600 border px-4 py-2 rounded-full text-sm font-medium hover:bg-slate-100">ນົກ</button>
+                <button onclick="filterCategory('สไลด์')" class="btn-filter bg-white text-slate-600 border px-4 py-2 rounded-full text-sm font-medium hover:bg-slate-100">ຊີ້ນສະໄລ້</button>
+                <button onclick="filterCategory('ลูกชิ้น')" class="btn-filter bg-white text-slate-600 border px-4 py-2 rounded-full text-sm font-medium hover:bg-slate-100">ລູກຊິ້ນຮອດດອກ</button>
+                <button onclick="filterCategory('ແຈ່ວແລະເສັ້ນ')" class="btn-filter bg-white text-slate-600 border px-4 py-2 rounded-full text-sm font-medium hover:bg-slate-100">ແຈ່ວແລະເສັ້ນ</button>
+            </div>
+            <input type="text" id="search-input" onkeyup="searchProduct()" placeholder="ຄົ້ນຫາສິນຄ້າ..." class="w-full md:w-64 px-4 py-2 rounded-full border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+        </div>
+
+        <div id="product-grid" class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+            <div class="col-span-full text-center py-12 text-slate-400 loading">
+                <p class="text-2xl mb-2">⏳</p>
+                <p>ກຳລັງໂຫຼດສິນຄ້າ...</p>
+            </div>
+        </div>
+        <p id="product-count" class="text-center text-slate-500 text-sm mt-6"></p>
+    </main>
+
+    <!-- ========== CART MODAL ========== -->
+    <div id="cart-modal" class="cart-overlay hidden" onclick="if(event.target===this) toggleCart()">
+        <div class="cart-modal">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-slate-800">🛒 ກະຕ່າສິນຄ້າ</h2>
+                <button onclick="toggleCart()" class="text-slate-400 hover:text-slate-600 text-2xl">&times;</button>
+            </div>
+            <div id="cart-items-list" class="space-y-1"></div>
+            <div id="cart-empty" class="text-center py-8 text-slate-400">
+                <p class="text-3xl mb-2">🛒</p>
+                <p>ກະຕ່າຫວ່າງເປົ່າ</p>
+            </div>
+            <div id="cart-footer" class="hidden mt-4 pt-4 border-t border-slate-200">
+                <div class="flex justify-between text-lg font-bold">
+                    <span>ລາຄາລວມ:</span>
+                    <span id="cart-total" class="text-blue-600">0 ກີບ</span>
+                </div>
+                <button onclick="checkoutCart()" class="mt-3 w-full bg-emerald-500 hover:bg-emerald-600 text-white py-3 rounded-lg font-medium transition">
+                    💬 ສັ່ງຊື້ທັງໝົດ
+                </button>
+                <button onclick="clearCart()" class="mt-2 w-full bg-red-100 hover:bg-red-200 text-red-600 py-2 rounded-lg text-sm font-medium transition">
+                    🗑️ ລຶບທັງໝົດ
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== FLOATING BUTTONS ========== -->
+    <a href="https://wa.me/8562051628289" target="_blank" class="fixed bottom-6 right-6 bg-emerald-500 hover:bg-emerald-600 text-white p-4 rounded-full shadow-2xl flex items-center gap-2 transition hover:scale-105 z-50">
+        💬 <span class="font-semibold text-sm hidden sm:inline">WhatsApp</span>
+    </a>
+    <a href="https://www.facebook.com/98thip" target="_blank" class="fixed bottom-6 left-6 bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-full shadow-2xl flex items-center gap-2 transition hover:scale-105 z-50">
+        📘 <span class="font-semibold text-sm hidden sm:inline">ເພຈ</span>
+    </a>
+
+    <!-- ========== FOOTER ========== -->
+    <footer class="bg-slate-800 text-slate-300 py-8 mt-12">
+        <div class="max-w-6xl mx-auto px-6 text-center space-y-3">
+            <h3 class="text-lg font-bold text-white">ສົນໃຈສັ່ງຊື້ ຫຼື ສອບຖາມເພີ່ມເຕີມ</h3>
+            <p>ສອບຖາມຜ່ານ WhatsApp ຫຼື Facebook ໄດ້ທັນທີ</p>
+            <div class="flex flex-wrap justify-center gap-4 mt-3">
+                <a href="https://www.facebook.com/98thip" target="_blank" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-full text-sm font-medium transition inline-block">📘 ຕິດຕາມ Facebook</a>
+                <a href="https://wa.me/8562051628289" target="_blank" class="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-2 rounded-full text-sm font-medium transition inline-block">💬 ສອບຖາມ WhatsApp</a>
+            </div>
+            <p class="text-sm text-slate-500 mt-4">©️ 2026 ຮ້ານອາຫານແຊ່ແຂງນາງແສນ. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- ========== JAVASCRIPT ========== -->
+    <script>
+        // ============================================================
+        // SLIDER
+        // ============================================================
+        let currentSlide = 0;
+        const totalSlides = 3;
+        let sliderInterval = null;
+
+        function updateSliderUI() {
+            const track = document.getElementById('slider-track');
+            track.style.transform = `translateX(-${currentSlide * 100}%)`;
+            document.querySelectorAll('.slide-dot').forEach((dot, idx) => {
+                if (idx === currentSlide) {
+                    dot.classList.remove('bg-white/60');
+                    dot.classList.add('bg-white');
+                } else {
+                    dot.classList.remove('bg-white');
+                    dot.classList.add('bg-white/60');
+                }
+            });
+        }
+
+        function goToSlide(index) {
+            currentSlide = index;
+            updateSliderUI();
+            resetAutoSlide();
+        }
+
+        function changeSlide(direction) {
+            currentSlide = (currentSlide + direction + totalSlides) % totalSlides;
+            updateSliderUI();
+            resetAutoSlide();
+        }
+
+        function startAutoSlide() {
+            sliderInterval = setInterval(() => {
+                currentSlide = (currentSlide + 1) % totalSlides;
+                updateSliderUI();
+            }, 4000);
+        }
+
+        function resetAutoSlide() {
+            clearInterval(sliderInterval);
+            startAutoSlide();
+        }
+        updateSliderUI();
+        startAutoSlide();
+
+        // ============================================================
+        // DATA
+        // ============================================================
+        const categories = [
+            { name: "เป็ด", badgeClass: "bg-green-100 text-green-700", label: "ເປັດ" },
+            { name: "ไก่", badgeClass: "bg-yellow-100 text-yellow-700", label: "ໄກ່" },
+            { name: "หมู", badgeClass: "bg-pink-100 text-pink-700", label: "ໝູ" },
+            { name: "วัว", badgeClass: "bg-red-100 text-red-700", label: "ງົວ" },
+            { name: "ทะเล", badgeClass: "bg-cyan-100 text-cyan-700", label: "ແຊ່ແຂງ" },
+            { name: "แปรรูป", badgeClass: "bg-purple-100 text-purple-700", label: "ອາຫານແປຮູບ" },
+            { name: "นก", badgeClass: "bg-orange-100 text-orange-700", label: "ນົກ" },
+            { name: "สไลด์", badgeClass: "bg-indigo-100 text-indigo-700", label: "ຊີ້ນສະໄລ້" },
+            { name: "ลูกชิ้น", badgeClass: "bg-rose-100 text-rose-700", label: "ລູກຊິ້ນຮອດດອກ" },
+            { name: "ແຈ່ວແລະເສັ້ນ", badgeClass: "bg-amber-100 text-amber-700", label: "ແຈ່ວແລະເສັ້ນ" }
+        ];
+
+        const productDetails = {
+            "ຕັບເປັດ": { weight: "12 ກິໂລ", price: 290000, stock: 10 },
+            "ຂາເປັດ": { weight: "6-7 ກິໂລ", price: 190000, stock: 8 },
+            "ປີກເປັດ": { weight: "10 ກິໂລ", price: 350000, stock: 5 },
+            "ເອີກເປັດ": { weight: "8 ກິໂລ", price: 280000, stock: 6 },
+            "ປີກເປັດ CP": { weight: "12 ກິໂລ", price: 395000, stock: 4 },
+            "ຄາງເປັດ": { weight: "10 ກິໂລ", price: 840000, stock: 3 },
+            "ຕີນເປັດ": { weight: "12 ກິໂລ", price: 720000, stock: 2 },
+            "ໂຕເປັດ": { weight: "8ໂຕ (1,6-1,7ກິໂລ)", price: 400000, stock: 7 },
+            "ຫົວເປັດ": { weight: "10ກິໂລແພັກ2ໂລ", price: 320000, stock: 9 },
+            "ເອີກໄກ່": { weight: "12ກິໂລແພັກ2ໂລ", price: 550000, stock: 12 },
+            "ຂາໂຕ້ໄກ່": { weight: "12ກິໂລແພັກ2ກິໂລ", price: 770000, stock: 10 },
+            "ປາຍປີກໄກ່(2)": { weight: "12ກິໂລ", price: 240000, stock: 15 },
+            "ປາຍປີກໄກ່(1)": { weight: "10ກິໂລ", price: 250000, stock: 14 },
+            "ຕີນໄກ່": { weight: "15 ກິໂລ", price: 540000, stock: 6 },
+            "ກົ້ນໄກ່": { weight: "12ກິໂລ", price: 330000, stock: 8 },
+            "ຫົວໃຈໄກ່": { weight: "12ກິໂລ", price: 340000, stock: 7 },
+            "ໄຕໄກ່": { weight: "10ກິໂລ", price: 270000, stock: 9 },
+            "ກົກປີກໄກ່": { weight: "12ກິໂລsunfood", price: 720000, stock: 5 },
+            "ປີກເຕັມໄກ່": { weight: "12ກິໂລແພັກ2ໂລ", price: 780000, stock: 4 },
+            "ປີກກາງໄກ່": { weight: "12ກິໂລແພັກ2ກິໂລ", price: 940000, stock: 3 },
+            "ຂານອ່ງໄກ່": { weight: "12ກິໂລແພັກ2ກິໂລ", price: 680000, stock: 6 },
+            "ໜັງໄກ່": { weight: "10ກິໂລ", price: 380000, stock: 7 },
+            "ໂຄງໄກ່": { weight: "10ກິໂລ", price: 265000, stock: 10 },
+            "ໄກ່ບົດ": { weight: "1ກິໂລ", price: 40000, stock: 20 },
+            "ໄຂ່ອອ່ນ": { weight: "12ກິໂລ", price: 800000, stock: 5 },
+            "ເອັນໄກ່ແກ້ວ": { weight: "12ກິໂລແພັກ2ໂລ", price: 900000, stock: 4 },
+            "ເອັນເຕ້ໄກ່": { weight: "10ກິໂລ", price: 390000, stock: 6 },
+            "ໄກ່ພັນໄຂ່": { weight: "1 ໂຕ (1.5-2 ກິໂລ)", price: 550000, stock: 8 },
+            "ໄກ່ແກ່": { weight: "1 ໂຕ (1,8-2ກິໂລ)", price: 550000, stock: 8 },
+            "ໄກ່ດຳ": { weight: "8ໂຕ (1-1.2ກິໂລ)", price: 600000, stock: 5 },
+            "ນົມໝູ": { weight: "10ກິໂລ", price: 460000, stock: 10 },
+            "ຫົວໃຈໝູ": { weight: "10ກິໂລ", price: 440000, stock: 8 },
+            "ລີ້ນໝູ": { weight: "2ກິໂລ", price: 140000, stock: 12 },
+            "ໜ້າກາກໝູ": { weight: "5ກິໂລ", price: 210000, stock: 6 },
+            "ໝູບົດ": { weight: "10ກິໂລ", price: 330000, stock: 9 },
+            "ໝູມັກງາ": { weight: "10ກິໂລ", price: 60000, stock: 15 },
+            "ໝູມັກນຸ່ມ": { weight: "10ກິໂລ", price: 60000, stock: 15 },
+            "ໝູມັກພິກໄທດຳ": { weight: "10ກິໂລ", price: 60000, stock: 14 },
+            "ໄສ້ແກ່ໝູ": { weight: "10ກິໂລ", price: 400000, stock: 7 },
+            "ໄສ້ທຽມ": { weight: "1 ກິໂລ", price: 190000, stock: 10 },
+            "ໄສ້ຕັນ": { weight: "1 ກິໂລ", price: 50000, stock: 20 },
+            "ໄສ້ຕັນຕົ້ມ": { weight: "3-5 ກິໂລ", price: 240000, stock: 5 },
+            "ສະໃບນາງ": { weight: "1ຖົງ 4-5 ກິໂລ", price: 515000, stock: 6 },
+            "ນົກກະທາ": { weight: "1 ລັງ (10ກິໂລ)", price: 750000, stock: 4 },
+            "ນົມໝູ 300g": { weight: "300 ກຣາມ", price: 34000, stock: 20 },
+            "ນົມໝູ 500g": { weight: "500 ກຣາມ", price: 54000, stock: 18 },
+            "ສັນຄໍ 300g": { weight: "300 ກຣາມ", price: 34000, stock: 20 },
+            "ສັນຄໍ 400g": { weight: "400 ກຣາມ", price: 45000, stock: 16 },
+            "ສາມຊັ້ນ 300g": { weight: "300 ກຣາມ", price: 33000, stock: 22 },
+            "ສາມຊັ້ນ 500g": { weight: "500 ກຣາມ", price: 52000, stock: 18 },
+            "ເສືອຮ້ອງໄຫ້ 300g": { weight: "300 ກຣາມ", price: 54000, stock: 15 },
+            "ເສືອຮ້ອງໄຫ້ 500g": { weight: "500 ກຣາມ", price: 69000, stock: 12 },
+            "ກຸ້ງເດັ້ງ": { weight: "10ກິໂລ", price: 830000, stock: 6 },
+            "ຄໍໝຶກ": { weight: "20ກິໂລ", price: 870000, stock: 4 },
+            "ໜວດໝຶກ": { weight: "20ກິໂລ1000/2000", price: 1600000, stock: 3 },
+            "ປີກໝຶກ": { weight: "20ກິໂລ500/1000", price: 1350000, stock: 3 },
+            "ໝຶກອາເຈນ": { weight: "1ກິໂລ", price: 1250000, stock: 5 },
+            "ໝຶກເມກາ": { weight: "10ກິໂລ", price: 1000000, stock: 4 },
+            "ໝຶກກະຕ້ອຍ": { weight: "10ແພັກ", price: 380000, stock: 8 },
+            "ຫົວຜ່າ": { weight: "1ລັງ", price: 1300000, stock: 2 },
+            "ປາດຳຣີ່ໂຕ": { weight: "10ກິໂລ", price: 340000, stock: 10 },
+            "ປາດຳຣີ່ຕິດໜັງ": { weight: "10ກິໂລ", price: 540000, stock: 8 },
+            "ໝຶກບັ້ງ": { weight: "10ກິໂລ", price: 400000, stock: 7 },
+            "ໝຶກວົງ": { weight: "10ກິໂລ", price: 400000, stock: 7 },
+            "ຫອຍແມງພູ່ຝາດຽວ": { weight: "10ກິໂລ", price: 450000, stock: 6 },
+            "ຫອຍຫວານ": { weight: "12ກິໂລ", price: 1176000, stock: 4 },
+            "ຫອຍຕົ້ມ": { weight: "10ກິໂລ", price: 400000, stock: 8 },
+            "ໝູປີ້ງ": { weight: "10ແພັກແພັກ20ໄມ້", price: 950000, stock: 5 },
+            "ແຜ່ນປໍເປ້ຍ": { weight: "1 ລັງ (20 ແຜ່ນ)", price: 1200000, stock: 4 },
+            "ປາແຊວມອນແຊ່ແຂງ": { weight: "1 ກິໂລ", price: 320000, stock: 10 },
+            "ພື້ນທ້ອງແຊວມອນ": { weight: "10ກິໂລ", price: 780000, stock: 5 },
+            "ປາໄຂ່": { weight: "10ກິໂລ", price: 900000, stock: 4 },
+            "ປາທູ": { weight: "10ກິໂລ", price: 340000, stock: 10 },
+            "ຜັກລວມ": { weight: "10ກິໂລ", price: 380000, stock: 8 },
+            "ຖົ່ວຢີ່ປຸ່ນ": { weight: "10ກິໂລ", price: 650000, stock: 6 },
+            "ກ້ຽວຈີນ": { weight: "10ກິໂລ", price: 430000, stock: 7 },
+            "ປາເຕົາຈີນ": { weight: "10ກິໂລ", price: 430000, stock: 7 },
+            "ປູມ້າ150/200": { weight: "1 ກິໂລ", price: 1260000 , stock: 12 },
+            "ປູຈຸດ150/200": { weight: "1 ກິໂລ", price: 910000, stock: 12 },
+            "ດັກແດ້": { weight: "10 ກິໂລ", price: 480000, stock: 6 },
+            "ຈິ້ງຫຼີດ": { weight: "1 ກິໂລ", price: 95000, stock: 15 },
+            "ປາເຕົາ": { weight: "ແກັດ", price: 760000, stock: 8 },
+            "ປາແຜນ": { weight: "ແກັດ", price: 760000, stock: 8 },
+            "ກຸ້ງທຽມ": { weight: "ແກັດ", price: 840000, stock: 6 },
+            "ກ້າມປູ": { weight: "ແກັດ", price: 890000, stock: 6 },
+            "ເຕົ້າຮູ້ຊີດ": { weight: "ແກັດ", price: 1080000, stock: 5 },
+            "ຕົວປາ": { weight: "ແກັດ", price: 900000, stock: 7 },
+            "ລູກຊີ້ນປາເຫລືອງ": { weight: "ແກັດ", price: 820000, stock: 6 },
+            "ລູກຊີ້ນກຸ້ງ": { weight: "ແກັດ", price: 980000, stock: 5 },
+            "ຊີຟູດໂບ ລູກຊີ້ນລວມ(10)": { weight: "10 ຊິ້ນ", price: 950000, stock: 6 },
+            "ປູອັດນ້ອຍA": { weight: "ແກັດ", price: 980000, stock: 5 },
+            "ປູອັດຈຳໂບ້": { weight: "ແກັດ", price: 760000, stock: 7 },
+            "ປູອັດຄານິຈັງ": { weight: "ແກັດ", price: 740000, stock: 7 },
+            "ປູອັດເບັນໂຕະ": { weight: "ແກັດ", price: 1020000, stock: 5 },
+            "ປູອັດນິໂກະ": { weight: "ແກັດ", price: 840000, stock: 6 },
+            "ປູອັດຊີດ(10)": { weight: "10 ຊິ້ນ", price: 520000, stock: 8 },
+            "ປູອັດອາລາດກ້າ(10)": { weight: "10 ຊິ້ນ", price: 570000, stock: 8 },
+            "ປູຫລອດ": { weight: "ແກັດ", price: 920000, stock: 6 },
+            "ໝຶກຫລອດ": { weight: "ແກັດ", price: 760000, stock: 7 },
+            "ຄອມໂບຟິດ": { weight: "ແກັດ", price: 1100000, stock: 5 },
+            "ເປົາໄຂ່ເຄັມ": { weight: "ແກັດ", price: 1120000, stock: 5 },
+            "ເປົາໄຂ່ກຸ້ງສົ້ມ": { weight: "ແກັດ", price: 1140000, stock: 4 },
+            "ເປົາໄຂ່ກຸ້ງຂາວ": { weight: "ແກັດ", price: 1140000, stock: 4 },
+            "ເປົາຜັກໂຂມ": { weight: "ແກັດ", price: 1100000, stock: 5 },
+            "ເຕົາເຕົາ(10)": { weight: "10 ຊິ້ນ", price: 390000, stock: 10 },
+            "ປາຫໍ່ສາລາຍ(10)": { weight: "10 ຊິ້ນ", price: 480000, stock: 8 },
+            "ປາມ້ວນສາລາຍ": { weight: "ແກັດ", price: 1080000, stock: 5 },
+            "ປາກະເປົາ(10)": { weight: "10 ຊິ້ນ", price: 550000, stock: 8 },
+            "ປາມ້ວນຊີດ(10)": { weight: "10 ຊິ້ນ", price: 390000, stock: 8 },
+            "ທໍນະໂດ(10)": { weight: "10 ຊິ້ນ", price: 550000, stock: 8 },
+            "ຈໍ້5ດາວ": { weight: "ແກັດ", price: 1000000, stock: 6 },
+            "ປາທິບ(10)": { weight: "10 ຊິ້ນ", price: 450000, stock: 9 },
+            "ແອ໋ງກີເບີດ": { weight: "ແກັດ", price: 1060000, stock: 5 },
+            "ຄານິເບ": { weight: "ແກັດ", price: 940000, stock: 6 },
+            "ກ້ຽວຊ່າ(15)": { weight: "15 ຊິ້ນ", price: 405000, stock: 10 },
+            "ກ້ຽວຈີນ(4)": { weight: "4 ຊິ້ນ", price: 430000, stock: 8 },
+            "ປາເຕົາຈີນ(4)": { weight: "4 ຊິ້ນ", price: 430000, stock: 8 },
+            "ມັນຝຣັ່ງ 1kg (12)": { weight: "1 ກິໂລ (12 ຊິ້ນ)", price: 520000, stock: 10 },
+            "ມັນຝຣັ່ງ 2kg (6)": { weight: "2 ກິໂລ (6 ຊິ້ນ)", price: 490000, stock: 10 },
+            "ໄສ້ກອກລົດໄຟ 1ແກັດ": { weight: "1 ແກັດ", price: 980000, stock: 5 },
+            "ໄສ້ກອກແດງ ນ້ອຍ": { weight: "1 ຖົງ", price: 36000, stock: 30 },
+            "ໄສ້ກອກແດງ ໃຫ່ຍ": { weight: "1 ຖົງ", price: 36000, stock: 28 },
+            "ລູກຊີ້ນ ໄກ່ຟາມ": { weight: "1 ຖົງ", price: 49000, stock: 25 },
+            "ລູກຊີ້ນໝູ ເຈ້ແສນ": { weight: "1 ຖົງ", price: 30000, stock: 35 },
+            "ລູກຊີ້ນງົວ ເຈ້ແສນ": { weight: "1 ຖົງ", price: 30000, stock: 35 },
+            "ລູກຊີ້ນໝູໃຫ່ຍ ເຈ້ແສນ": { weight: "1 ຖົງ", price: 30000, stock: 30 },
+            "ລູກຊີ້ນງົວໃຫ່ຍ ເຈ້ແສນ": { weight: "1 ຖົງ", price: 30000, stock: 30 },
+            "ລູກຊີ້ນໝູ ສົມສັກ": { weight: "1 ຖົງ", price: 34000, stock: 28 },
+            "ລູກຊີ້ນງົວ ສົມສັກ": { weight: "1 ຖົງ", price: 34000, stock: 28 },
+            "ປາແຫລມ": { weight: "1 ຖົງ", price: 24000, stock: 40 },
+            "ປາກົມ": { weight: "1 ຖົງ", price: 24000, stock: 40 },
+            "ປາເສັ້ນ ມະຫາໄຊ": { weight: "1 ຖົງ", price: 55000, stock: 20 },
+            "ຈຳໂບ້ໂກ": { weight: "1 ຖົງ", price: 51000, stock: 22 },
+            "ຈຳໂບ້ຊີດ": { weight: "1 ຖົງ", price: 69000, stock: 18 },
+            "PP ເຫລືອງ": { weight: "1 ຖົງ", price: 55000, stock: 20 },
+            "ດ໋ອກ3ສີ": { weight: "1 ຖົງ", price: 42000, stock: 25 },
+            "ຊີດຂຽວນ້ອຍ": { weight: "1 ຖົງ", price: 43000, stock: 24 },
+            "ຊີດຂຽວໃຫ່ຍ": { weight: "1 ຖົງ", price: 83000, stock: 16 },
+            "ເທວໝູ 500g": { weight: "500 ກຣາມ", price: 43000, stock: 20 },
+            "ເທວໝູ 1kg": { weight: "1 ກິໂລ", price: 97000, stock: 15 },
+            "ໄກ່ກອບ": { weight: "1 ຖົງ", price: 25000, stock: 35 },
+            "ໄກ່ຈໍ້ຂຽວ": { weight: "1 ຖົງ", price: 27000, stock: 32 },
+            "ຍໍບັ້ງ": { weight: "1 ຖົງ", price: 22000, stock: 40 },
+            "ຍໍແຜ່ນ": { weight: "1 ຖົງ", price: 48000, stock: 25 },
+            "ຂະໜົມຈີບ ໝູເຫລືອງ": { weight: "1 ຖົງ", price: 42000, stock: 25 },
+            "ຂະໜົມຈີບ ໝູຍົກ": { weight: "1 ຖົງ", price: 42000, stock: 25 },
+            "ແໜມດອນເມືອງ": { weight: "1 ຖົງ", price: 29000, stock: 30 },
+            "ໝູກະທຽມ ຟ້າ": { weight: "1 ຖົງ", price: 26000, stock: 35 },
+            "ໄສ້ກອກລົດໄຟ": { weight: "1 ຖົງ", price: 55000, stock: 20 },
+            "ໄສ້ກອກສົ້ມ": { weight: "1 ຖົງ", price: 70000, stock: 18 },
+            "ໄສ້ກອກຫວານ": { weight: "1 ຖົງ", price: 92000, stock: 15 },
+            "ລູກຊີ້ນບໍໂອນອ້ຍ": { weight: "1 ຖົງ", price: 30000, stock: 30 },
+            "ລູກຊີ້ນບໍໂອໃຫຍ່": { weight: "1 ຖົງ", price: 58000, stock: 20 },
+            "ໄສ້ກອ໋ກອີສານ": { weight: "1 ຖົງ", price: 25000, stock: 35 },
+            "ເຕົາຮູ້ໄຂ່": { weight: "1 ຖົງ", price: 44000, stock: 25 },
+            "ຊີຟູດ(10)": { weight: "10 ຊິ້ນ", price: 180000, stock: 10 },
+            "ໂຕໝູ ນ້ອຍ(10)": { weight: "10 ຊິ້ນ", price: 200000, stock: 10 },
+            "ໂຕໝູ ໃຫ່ຍ(10)": { weight: "10 ຊິ້ນ", price: 330000, stock: 8 },
+            "ແຈ່ວລູກຊີ້ນ ຕຸກ(12)": { weight: "12 ຕຸກ", price: 132000, stock: 12 },
+            "ແຈ່ວລູກຊີ້ນ ຖົງ(15)": { weight: "15 ຖົງ", price: 375000, stock: 10 },
+            "ຄຸນນັດ ນ້ອຍ(48)": { weight: "48 ຊິ້ນ", price: 600000, stock: 8 },
+            "ຄຸນນັດ ໃຫ່ຍ(24)": { weight: "24 ຊິ້ນ", price: 600000, stock: 8 },
+            "ຄຸນນິດ ນ້ອຍ(48)": { weight: "48 ຊິ້ນ", price: 670000, stock: 7 },
+            "ຄຸນນິດ ໃຫ່ຍ(24)": { weight: "24 ຊິ້ນ", price: 670000, stock: 7 },
+            "ປາແດກແມ່ບຸນລ້ຳ(24)": { weight: "24 ກິໂລ", price: 285000, stock: 10 },
+            "ເສສວນຫົວປາ(10)": { weight: "10 ຊິ້ນ", price: 140000, stock: 12 },
+            "ເສສວນໂຍກໂປ(10)": { weight: "10 ຊິ້ນ", price: 110000, stock: 14 },
+            "ເສສວນກຸ້ງ(10)": { weight: "10 ຊິ້ນ", price: 140000, stock: 12 },
+            "ນ້ຳດອງຕີນໄກ່(10)": { weight: "10 ຊິ້ນ", price: 160000, stock: 10 },
+            "ນ້ຳດອງຕີນໄກ່ໄທ(10)": { weight: "10 ຊິ້ນ", price: 160000, stock: 10 },
+            "ຜົງປີ້ງຈີນ ຟ້າ(10)": { weight: "10 ຊິ້ນ", price: 140000, stock: 12 },
+            "ຜົງປີ້ງຈີນ ແດງ(10)": { weight: "10 ຊິ້ນ", price: 140000, stock: 12 },
+            "ເສັ້ນມັນຕົ້ນ(10)": { weight: "10 ກິໂລ", price: 140000, stock: 10 },
+            "ແຜ່ນເຕົ້າຮູ້ ແຫ້ງ ໂລ": { weight: "1 ໂລ", price: 50000, stock: 20 },
+            "ເສັ້ນດຳ ເປົາ9ໂລ": { weight: "9 ກິໂລ", price: 220000, stock: 10 },
+            "ເສັ້ນລ້ອນ ຕົ້ນແກ້ວ(10)": { weight: "10 ກິໂລ", price: 90000, stock: 12 },
+            "ເສັ້ນລ້ອນ ດອກຝ້າຍ(10)": { weight: "10 ກິໂລ", price: 95000, stock: 12 },
+            "ເສັ້ນແກ້ວ(12)": { weight: "12 ກິໂລ", price: 470000, stock: 8 },
+            "ເສັ້ນໝີ່ ຍົກສົດ": { weight: "1 ກິໂລ", price: 22000, stock: 30 },
+            "ເສັ້ນໝີ່ ເຫລືອງສົດ": { weight: "1 ກິໂລ", price: 22000, stock: 30 },
+            "ແຜ່ນກ້ຽວສົດ": { weight: "1 ກິໂລ", price: 22000, stock: 30 },
+            // ສິນຄ້າໃໝ່ ມິນິຊາບູ
+            "ມິນິຊາບູ 1ລັງ(25)": { weight: "1ລັງ(25)", price: 625000, stock: 10 },
+            "ວາຊາບິ": { weight: "1 ແພັກ", price: 95000, stock: 10 }
+        };
+
+        const productData = {
+            "เป็ด": ["ຕັບເປັດ", "ຂາເປັດ", "ປີກເປັດ", "ເອີກເປັດ", "ປີກເປັດ CP", "ຄາງເປັດ", "ຕີນເປັດ", "ໂຕເປັດ", "ຫົວເປັດ"],
+            "ไก่": ["ເອີກໄກ່", "ຂາໂຕ້ໄກ່", "ປາຍປີກໄກ່(2)", "ປາຍປີກໄກ່(1)", "ຕີນໄກ່", "ກົ້ນໄກ່", "ຫົວໃຈໄກ່", "ໄຕໄກ່", "ກົກປີກໄກ່", "ປີກເຕັມໄກ່", "ປີກກາງໄກ່", "ຂານອ່ງໄກ່", "ໜັງໄກ່", "ໂຄງໄກ່", "ໄກ່ບົດ", "ໄຂ່ອອ່ນ", "ເອັນໄກ່ແກ້ວ", "ເອັນເຕ້ໄກ່", "ໄກ່ພັນໄຂ່", "ໄກ່ແກ່", "ໄກ່ດຳ"],
+            "หมู": ["ນົມໝູ", "ຫົວໃຈໝູ", "ລີ້ນໝູ", "ໜ້າກາກໝູ", "ໝູບົດ", "ໝູມັກງາ", "ໝູມັກນຸ່ມ", "ໝູມັກພິກໄທດຳ", "ໄສ້ແກ່ໝູ", "ໄສ້ທຽມ", "ໄສ້ຕັນ", "ໄສ້ຕັນຕົ້ມ"],
+            "วัว": ["ສະໃບນາງ"],
+            "ทะเล": ["ກຸ້ງເດັ້ງ", "ຄໍໝຶກ", "ໜວດໝຶກ", "ປີກໝຶກ", "ໝຶກອາເຈນ", "ໝຶກເມກາ", "ໝຶກກະຕ້ອຍ", "ຫົວຜ່າ", "ປາດຳຣີ່ໂຕ", "ປາດຳຣີ່ຕິດໜັງ", "ໝຶກບັ້ງ", "ໝຶກວົງ", "ຫອຍແມງພູ່ຝາດຽວ", "ຫອຍຫວານ", "ຫອຍຕົ້ມ", "ໝູປີ້ງ", "ແຜ່ນປໍເປ້ຍ", "ປາແຊວມອນແຊ່ແຂງ", "ພື້ນທ້ອງແຊວມອນ", "ປາໄຂ່", "ປາທູ", "ຜັກລວມ", "ຖົ່ວຢີ່ປຸ່ນ", "ກ້ຽວຈີນ", "ປາເຕົາຈີນ", "ປູມ້າ150/200", "ປູຈຸດ150/200", "ດັກແດ້", "ຈິ້ງຫຼີດ"],
+            "แปรรูป": ["ປາເຕົາ", "ປາແຜນ", "ກຸ້ງທຽມ", "ກ້າມປູ", "ເຕົ້າຮູ້ຊີດ", "ຕົວປາ", "ລູກຊີ້ນປາເຫລືອງ", "ລູກຊີ້ນກຸ້ງ", "ຊີຟູດໂບ ລູກຊີ້ນລວມ(10)", "ປູອັດນ້ອຍA", "ປູອັດຈຳໂບ້", "ປູອັດຄານິຈັງ", "ປູອັດເບັນໂຕະ", "ປູອັດນິໂກະ", "ປູອັດຊີດ(10)", "ປູອັດອາລາດກ້າ(10)", "ປູຫລອດ", "ໝຶກຫລອດ", "ຄອມໂບຟິດ", "ເປົາໄຂ່ເຄັມ", "ເປົາໄຂ່ກຸ້ງສົ້ມ", "ເປົາໄຂ່ກຸ້ງຂາວ", "ເປົາຜັກໂຂມ", "ເຕົາເຕົາ(10)", "ປາຫໍ່ສາລາຍ(10)", "ປາມ້ວນສາລາຍ", "ປາກະເປົາ(10)", "ປາມ້ວນຊີດ(10)", "ທໍນະໂດ(10)", "ຈໍ້5ດາວ", "ປາທິບ(10)", "ແອ໋ງກີເບີດ", "ຄານິເເບ", "ກ້ຽວຊ່າ(15)", "ກ້ຽວຈີນ(4)", "ປາເຕົາຈີນ(4)", "ມັນຝຣັ່ງ 1kg (12)", "ມັນຝຣັ່ງ 2kg (6)", "ໄສ້ກອກລົດໄຟ 1ແກັດ", "ມິນິຊາບູ 1ລັງ(25)"],
+            "นก": ["ນົກກະທາ"],
+            "สไลด์": ["ນົມໝູ 300g", "ນົມໝູ 500g", "ສັນຄໍ 300g", "ສັນຄໍ 400g", "ສາມຊັ້ນ 300g", "ສາມຊັ້ນ 500g", "ເສືອຮ້ອງໄຫ້ 300g", "ເສືອຮ້ອງໄຫ້ 500g"],
+            "ลูกชิ้น": [
+                "ໄສ້ກອກແດງ ນ້ອຍ", "ໄສ້ກອກແດງ ໃຫ່ຍ", "ລູກຊີ້ນ ໄກ່ຟາມ", "ລູກຊີ້ນໝູ ເຈ້ແສນ", "ລູກຊີ້ນງົວ ເຈ້ແສນ", "ລູກຊີ້ນໝູໃຫ່ຍ ເຈ້ແສນ", "ລູກຊີ້ນງົວໃຫ່ຍ ເຈ້ແສນ", "ລູກຊີ້ນໝູ ສົມສັກ", "ລູກຊີ້ນງົວ ສົມສັກ", "ປາແຫລມ", "ປາກົມ",
+                "ປາເສັ້ນ ມະຫາໄຊ", "ຈຳໂບ້ໂກ", "ຈຳໂບ້ຊີດ", "PP ເຫລືອງ", "ດ໋ອກ3ສີ", "ຊີດຂຽວນ້ອຍ", "ຊີດຂຽວໃຫ່ຍ",
+                "ເທວໝູ 500g", "ເທວໝູ 1kg", "ໄກ່ກອບ", "ໄກ່ຈໍ້ຂຽວ", "ຍໍບັ້ງ", "ຍໍແຜ່ນ",
+                "ຂະໜົມຈີບ ໝູເຫລືອງ", "ຂະໜົມຈີບ ໝູຍົກ", "ແໜມດອນເມືອງ", "ໝູກະທຽມ ຟ້າ",
+                "ໄສ້ກອກລົດໄຟ", "ໄສ້ກອກສົ້ມ", "ໄສ້ກອກຫວານ",
+                "ລູກຊີ້ນບໍໂອນອ້ຍ", "ລູກຊີ້ນບໍໂອໃຫຍ່", "ໄສ້ກອ໋ກອີສານ", "ເຕົາຮູ້ໄຂ່"
+            ],
+            "ແຈ່ວແລະເສັ້ນ": [
+                "ຊີຟູດ(10)", "ໂຕໝູ ນ້ອຍ(10)", "ໂຕໝູ ໃຫ່ຍ(10)", "ແຈ່ວລູກຊີ້ນ ຕຸກ(12)", "ແຈ່ວລູກຊີ້ນ ຖົງ(15)",
+                "ຄຸນນັດ ນ້ອຍ(48)", "ຄຸນນັດ ໃຫ່ຍ(24)", "ຄຸນນິດ ນ້ອຍ(48)", "ຄຸນນິດ ໃຫ່ຍ(24)",
+                "ປາແດກແມ່ບຸນລ້ຳ(24)", "ເສສວນຫົວປາ(10)", "ເສສວນໂຍກໂປ(10)", "ເສສວນກຸ້ງ(10)",
+                "ນ້ຳດອງຕີນໄກ່(10)", "ນ້ຳດອງຕີນໄກ່ໄທ(10)", "ຜົງປີ້ງຈີນ ຟ້າ(10)", "ຜົງປີ້ງຈີນ ແດງ(10)",
+                "ເສັ້ນມັນຕົ້ນ(10)", "ແຜ່ນເຕົ້າຮູ້ ແຫ້ງ ໂລ", "ເສັ້ນດຳ ເປົາ9ໂລ",
+                "ເສັ້ນລ້ອນ ຕົ້ນແກ້ວ(10)", "ເສັ້ນລ້ອນ ດອກຝ້າຍ(10)", "ເສັ້ນແກ້ວ(12)",
+                "ເສັ້ນໝີ່ ຍົກສົດ", "ເສັ້ນໝີ່ ເຫລືອງສົດ", "ແຜ່ນກ້ຽວສົດ",
+                "ວາຊາບິ"
+            ]
+        };
+
+        const imageConfig = {
+            "ຕັບເປັດ": "https://i.imgur.com/E1gpe0P.jpeg",
+            "ຂາເປັດ": "https://i.imgur.com/xbg1Lro.jpeg",
+            "ປີກເປັດ": "https://i.imgur.com/i2285E3.jpeg",
+            "ເອີກເປັດ": "https://i.imgur.com/8fGP7jw.jpeg",
+            "ປີກເປັດ CP": "https://i.imgur.com/CpyXzU5.jpeg",
+            "ຄາງເປັດ": "https://i.imgur.com/ykO69GR.jpeg",
+            "ຕີນເປັດ": "https://i.imgur.com/vh1E7nO.jpeg",
+            "ໂຕເປັດ": "https://i.imgur.com/sbv6vGd.jpeg",
+            "ຫົວເປັດ": "https://i.imgur.com/QDII9KU.jpeg",
+            "ເອີກໄກ່": "https://i.imgur.com/lg6A8WS.jpeg",
+            "ຂາໂຕ້ໄກ່": "https://i.imgur.com/LBwVddT.jpeg",
+            "ປາຍປີກໄກ່(2)": "https://i.imgur.com/eqnLhvX.jpeg",
+            "ປາຍປີກໄກ່(1)": "https://i.imgur.com/XOij9DP.jpeg",
+            "ຕີນໄກ່": "https://i.imgur.com/Moo8V8o.jpeg",
+            "ກົ້ນໄກ່": "https://i.imgur.com/B6x7PAD.jpeg",
+            "ຫົວໃຈໄກ່": "https://i.imgur.com/c20JCOJ.jpeg",
+            "ໄຕໄກ່": "https://i.imgur.com/X7GZhrS.jpeg",
+            "ກົກປີກໄກ່": "https://i.imgur.com/Jsdv9GA.jpeg",
+            "ປີກເຕັມໄກ່": "https://i.imgur.com/WVvqU0c.jpeg",
+            "ປີກກາງໄກ່": "https://i.imgur.com/ebpNmXf.jpeg",
+            "ຂານອ່ງໄກ່": "https://i.imgur.com/xMQDWYA.jpeg",
+            "ໜັງໄກ່": "https://i.imgur.com/Be16e2t.jpeg",
+            "ໂຄງໄກ່": "https://i.imgur.com/ZBYBfXY.jpeg",
+            "ໄກ່ບົດ": "https://i.imgur.com/Jfv0xlO.jpeg",
+            "ໄຂ່ອອ່ນ": "https://i.imgur.com/MOTsr9z.jpeg",
+            "ເອັນໄກ່ແກ້ວ": "https://i.imgur.com/gEGFwPX.jpeg",
+            "ເອັນເຕ້ໄກ່": "https://i.imgur.com/9MhspVo.jpeg",
+            "ໄກ່ພັນໄຂ່": "https://i.imgur.com/CJtFgBp.jpeg",
+            "ໄກ່ແກ່": "https://i.imgur.com/CJtFgBp.jpeg",
+            "ໄກ່ດຳ": "https://i.imgur.com/LBDvzwx.jpeg",
+            "ນົມໝູ": "https://i.imgur.com/VCxG68Z.jpeg",
+            "ຫົວໃຈໝູ": "https://i.imgur.com/1o4OoEG.jpeg",
+            "ລີ້ນໝູ": "https://i.imgur.com/2DXI0aU.jpeg",
+            "ໜ້າກາກໝູ": "https://i.imgur.com/j398tuc.jpeg",
+            "ໝູບົດ": "https://i.imgur.com/ZuJLmYP.jpeg",
+            "ໝູມັກງາ": "https://i.imgur.com/QlkkFz5.jpeg",
+            "ໝູມັກນຸ່ມ": "https://i.imgur.com/Og5wuGG.jpeg",
+            "ໝູມັກພິກໄທດຳ": "https://i.imgur.com/tHviFjD.jpeg",
+            "ໄສ້ແກ່ໝູ": "https://i.imgur.com/Tg9AvPc.jpeg",
+            "ໄສ້ທຽມ": "https://i.imgur.com/5Y2Lfxp.jpeg",
+            "ໄສ້ຕັນ": "https://i.imgur.com/L9P5U6s.jpeg",
+            "ໄສ້ຕັນຕົ້ມ": "https://i.imgur.com/3aTnFS0.jpeg",
+            "ສະໃບນາງ": "https://i.imgur.com/DvXY1N3.jpeg",
+            "ນົກກະທາ": "https://i.imgur.com/kqnrgc3.jpeg",
+            "ນົມໝູ 300g": "https://i.imgur.com/5ETLuJN.jpeg",
+            "ນົມໝູ 500g": "https://i.imgur.com/WnUpcM2.jpeg",
+            "ສັນຄໍ 300g": "https://i.imgur.com/urtNtus.jpeg",
+            "ສັນຄໍ 400g": "https://i.imgur.com/0wWsoqM.jpeg",
+            "ສາມຊັ້ນ 300g": "https://i.imgur.com/nVTtMua.jpeg",
+            "ສາມຊັ້ນ 500g": "https://i.imgur.com/U8OmNtV.jpeg",
+            "ເສືອຮ້ອງໄຫ້ 300g": "https://i.imgur.com/XlIHc09.jpeg",
+            "ເສືອຮ້ອງໄຫ້ 500g": "https://i.imgur.com/h0pvWUB.jpeg",
+            "ກຸ້ງເດັ້ງ": "https://i.imgur.com/PP7yZFk.jpeg",
+            "ຄໍໝຶກ": "https://i.imgur.com/EgVpG9A.jpeg",
+            "ໜວດໝຶກ": "https://i.imgur.com/0EP36yI.jpeg",
+            "ປີກໝຶກ": "https://i.imgur.com/jSiBXKO.jpeg",
+            "ໝຶກອາເຈນ": "https://i.imgur.com/PJX7Peh.jpeg",
+            "ໝຶກເມກາ": "https://i.imgur.com/CYt8O6C.jpeg",
+            "ໝຶກກະຕ້ອຍ": "https://i.imgur.com/XpCsPXb.jpeg",
+            "ຫົວຜ່າ": "https://i.imgur.com/SZicCix.jpeg",
+            "ປາດຳຣີ່ໂຕ": "https://i.imgur.com/cjkmGFm.jpeg",
+            "ປາດຳຣີ່ຕິດໜັງ": "https://i.imgur.com/xJxoXbL.jpeg",
+            "ໝຶກບັ້ງ": "https://i.imgur.com/aRQX3Gc.jpeg",
+            "ໝຶກວົງ": "https://i.imgur.com/nIKOwph.jpeg",
+            "ຫອຍແມງພູ່ຝາດຽວ": "https://i.imgur.com/5xmpLlF.jpeg",
+            "ຫອຍຫວານ": "https://i.imgur.com/eFhtYRf.jpeg",
+            "ຫອຍຕົ້ມ": "https://i.imgur.com/IgBjCMQ.jpeg",
+            "ໝູປີ້ງ": "https://i.imgur.com/C4iOrHI.jpeg",
+            "ແຜ່ນປໍເປ້ຍ": "https://i.imgur.com/ccCdHqs.jpeg",
+            "ປາແຊວມອນແຊ່ແຂງ": "https://i.imgur.com/pqauGvG.jpeg",
+            "ພື້ນທ້ອງແຊວມອນ": "https://i.imgur.com/ut6nj5L.jpeg",
+            "ປາໄຂ່": "https://i.imgur.com/samBVww.jpeg",
+            "ປາທູ": "https://i.imgur.com/e7etGny.jpeg",
+            "ຜັກລວມ": "https://i.imgur.com/d74w5Zz.jpeg",
+            "ຖົ່ວຢີ່ປຸ່ນ": "https://i.imgur.com/m8SlUlo.jpeg",
+            "ກ້ຽວຈີນ": "https://i.imgur.com/s4e1GSX.jpeg",
+            "ປາເຕົາຈີນ": "https://i.imgur.com/mK0hvfr.jpeg",
+            "ປູມ້າ150/200": "https://i.imgur.com/ATNEegE.jpeg",
+            "ປູຈຸດ150/200": "https://i.imgur.com/C16IBXg.jpeg",
+            "ດັກແດ້": "https://i.imgur.com/krNeMGB.jpeg",
+            "ຈິ້ງຫຼີດ": "https://i.imgur.com/OJXcj7N.jpeg",
+            "ປາເຕົາ": "https://i.imgur.com/LQDpVoO.pngb",
+            "ປາແຜນ": "https://i.imgur.com/6WB4WVt.jpeg",
+            "ກຸ້ງທຽມ": "https://i.imgur.com/CCgU25w.jpeg",
+            "ກ້າມປູ": "https://i.imgur.com/elnxHYd.jpegw=500",
+            "ເຕົ້າຮູ້ຊີດ": "https://i.imgur.com/JVZrGfw.png",
+            "ຕົວປາ": "https://i.imgur.com/QDEfmkw.jpegw=500",
+            "ລູກຊີ້ນປາເຫລືອງ": "https://i.imgur.com/dPmP91O.jpegw=500",
+            "ລູກຊີ້ນກຸ້ງ": "https://i.imgur.com/RF3B9ow.jpegw=500",
+            "ຊີຟູດໂບ ລູກຊີ້ນລວມ(10)": "https://i.imgur.com/Nq5eIKT.jpegw=500",
+            "ປູອັດນ້ອຍA": "https://i.imgur.com/7GE9xRd.jpegw=500",
+            "ປູອັດຈຳໂບ້": "https://i.imgur.com/rKBeU6N.jpeg",
+            "ປູອັດຄານິຈັງ": "https://i.imgur.com/TcuT844.jpeg",
+            "ປູອັດເບັນໂຕະ": "https://i.imgur.com/X185o8X.jpegw=500",
+            "ປູອັດນິໂກະ": "https://i.imgur.com/KQ10Rmm.jpegw=500",
+            "ປູອັດຊີດ(10)": "https://i.imgur.com/SxopXdm.jpegw=500",
+            "ປູອັດອາລາດກ້າ(10)": "https://i.imgur.com/uC60iD4.jpegw=500",
+            "ປູຫລອດ": "https://i.imgur.com/4lVwbkC.jpegw=500",
+            "ໝຶກຫລອດ": "https://i.imgur.com/o107VGr.pngw=500",
+            "ຄອມໂບຟິດ": "https://i.imgur.com/dadqxtk.jpegw=500",
+            "ເປົາໄຂ່ເຄັມ": "https://i.imgur.com/mhkwKwG.jpegw=500",
+            "ເປົາໄຂ່ກຸ້ງສົ້ມ": "https://i.imgur.com/Jt6aJIh.pngw=500",
+            "ເປົາໄຂ່ກຸ້ງຂາວ": "https://i.imgur.com/oDLLH2B.jpegw=500",
+            "ເປົາຜັກໂຂມ": "https://i.imgur.com/3qEBW2W.pngw=500",
+            "ເຕົາເຕົາ(10)": "https://i.imgur.com/qZoQwJO.pngw=500",
+            "ປາຫໍ່ສາລາຍ(10)": "https://i.imgur.com/uqknE9f.pngw=500",
+            "ປາມ້ວນສາລາຍ": "https://i.imgur.com/XTgyHR4.pngw=500",
+            "ປາກະເປົາ(10)": "https://i.imgur.com/athgTPr.jpegw=500",
+            "ປາມ້ວນຊີດ(10)": "https://i.imgur.com/IFGus0j.pngw=500",
+            "ທໍນະໂດ(10)": "https://i.imgur.com/fMDn5EW.jpegw=500",
+            "ຈໍ້5ດາວ": "https://i.imgur.com/VnDfJhV.jpegw=500",
+            "ປາທິບ(10)": "https://i.imgur.com/EFwTW6M.jpegw=500",
+            "ແອ໋ງກີເບີດ": "https://i.imgur.com/c0XqZsL.pngw=500",
+            "ຄານິເເບ": "https://i.imgur.com/cavujqh.jpeg",
+            "ກ້ຽວຊ່າ(15)": "https://i.imgur.com/N7GzthD.jpegw=500",
+            "ກ້ຽວຈີນ(4)": "https://i.imgur.com/p0oPRAx.jpegw=500",
+            "ປາເຕົາຈີນ(4)": "https://i.imgur.com/KKn2f2l.jpegw=500",
+            "ມັນຝຣັ່ງ 1kg (12)": "https://i.imgur.com/5apRqxW.jpegw=500",
+            "ມັນຝຣັ່ງ 2kg (6)": "https://i.imgur.com/wBjOuwD.jpegw=500",
+            "ໄສ້ກອກລົດໄຟ 1ແກັດ": "https://i.imgur.com/n3DdRLB.jpegw=500",
+            "ໄສ້ກອກແດງ ນ້ອຍ": "https://i.imgur.com/l3fbiXW.jpeg",
+            "ໄສ້ກອກແດງ ໃຫ່ຍ": "https://i.imgur.com/5ogzBd3.png",
+            "ລູກຊີ້ນ ໄກ່ຟາມ": "https://i.imgur.com/bVxIypa.png",
+            "ລູກຊີ້ນໝູ ເຈ້ແສນ": "https://i.imgur.com/OAlJb4z.jpeg",
+            "ລູກຊີ້ນງົວ ເຈ້ແສນ": "https://i.imgur.com/W1YVxL0.jpeg",
+            "ລູກຊີ້ນໝູໃຫ່ຍ ເຈ້ແສນ": "https://i.imgur.com/ktpNBck.jpeg",
+            "ລູກຊີ້ນງົວໃຫ່ຍ ເຈ້ແສນ": "https://i.imgur.com/I5P7mFb.jpeg",
+            "ລູກຊີ້ນໝູ ສົມສັກ": "https://i.imgur.com/oLIWF04.jpeg",
+            "ລູກຊີ້ນງົວ ສົມສັກ": "https://i.imgur.com/Mo4aYVb.jpeg",
+            "ປາແຫລມ": "https://i.imgur.com/AI06iDG.jpeg",
+            "ປາກົມ": "https://i.imgur.com/Nk7Z6cy.jpeg",
+            "ປາເສັ້ນ ມະຫາໄຊ": "https://i.imgur.com/PDrFvvT.jpegw=500",
+            "ຈຳໂບ້ໂກ": "https://i.imgur.com/l21loeS.jpegw=500",
+            "ຈຳໂບ້ຊີດ": "https://i.imgur.com/atLbQ1E.jpegw=500",
+            "PP ເຫລືອງ": "https://i.imgur.com/fzNTxwu.jpegw=500",
+            "ດ໋ອກ3ສີ": "https://i.imgur.com/2gcyqC6.jpegw=500",
+            "ຊີດຂຽວນ້ອຍ": "https://i.imgur.com/1CrTD6w.jpegw=500",
+            "ຊີດຂຽວໃຫ່ຍ": "https://i.imgur.com/A9WOOzH.jpegw=500",
+            "ເທວໝູ 500g": "https://i.imgur.com/Wn4p1JD.jpegw=500",
+            "ເທວໝູ 1kg": "https://i.imgur.com/zgYeYQt.jpegw=500",
+            "ໄກ່ກອບ": "https://i.imgur.com/eytxxwS.jpegw=500",
+            "ໄກ່ຈໍ້ຂຽວ": "https://i.imgur.com/DxVGdFN.jpegw=500",
+            "ຍໍບັ້ງ": "https://i.imgur.com/wTqxSRW.jpegw=500",
+            "ຍໍແຜ່ນ": "https://i.imgur.com/MJvSO4Y.jpegw=500",
+            "ຂະໜົມຈີບ ໝູເຫລືອງ": "https://i.imgur.com/GeA8pKF.jpegw=500",
+            "ຂະໜົມຈີບ ໝູຍົກ": "https://i.imgur.com/fZRLSCk.jpegw=500",
+            "ແໜມດອນເມືອງ": "https://i.imgur.com/vQlWPnr.jpegw=500",
+            "ໝູກະທຽມ ຟ້າ": "https://i.imgur.com/LKLe5Cq.jpegw=500",
+            "ໄສ້ກອກລົດໄຟ": "https://i.imgur.com/n3DdRLB.jpeg",
+            "ໄສ້ກອກສົ້ມ": "https://i.imgur.com/BgrUeEx.jpeg",
+            "ໄສ້ກອກຫວານ": "https://i.imgur.com/84kKoLV.jpeg",
+            "ລູກຊີ້ນບໍໂອນອ້ຍ": "https://i.imgur.com/PXvC2tb.jpegw=500",
+            "ລູກຊີ້ນບໍໂອໃຫຍ່": "https://i.imgur.com/sCaIS2c.jpegw=500",
+            "ໄສ້ກອ໋ກອີສານ": "https://i.imgur.com/i4P7GiC.jpegw=500",
+            "ເຕົາຮູ້ໄຂ່": "https://i.imgur.com/2h9KAVh.jpegw=500",
+            "ຊີຟູດ(10)": "https://i.imgur.com/Xg7T6Mx.jpegw=500",
+            "ໂຕໝູ ນ້ອຍ(10)": "https://i.imgur.com/GJPy5X0.jpegw=500",
+            "ໂຕໝູ ໃຫ່ຍ(10)": "https://i.imgur.com/diQcNmU.jpegw=500",
+            "ແຈ່ວລູກຊີ້ນ ຕຸກ(12)": "https://i.imgur.com/RmijBbx.jpeg",
+            "ແຈ່ວລູກຊີ້ນ ຖົງ(15)": "https://i.imgur.com/RWsM3Kv.jpegw=500",
+            "ຄຸນນັດ ນ້ອຍ(48)": "https://i.imgur.com/TMLOTAc.jpegw=500",
+            "ຄຸນນັດ ໃຫ່ຍ(24)": "https://i.imgur.com/lZ2xAwX.jpegw=500",
+            "ຄຸນນິດ ນ້ອຍ(48)": "https://i.imgur.com/237SQ7l.jpegw=500",
+            "ຄຸນນິດ ໃຫ່ຍ(24)": "https://i.imgur.com/ANXG7fQ.jpegw=500",
+            "ປາແດກແມ່ບຸນລ້ຳ(24)": "https://i.imgur.com/nyvwZ8K.jpegw=500",
+            "ເສສວນຫົວປາ(10)": "https://i.imgur.com/IlzKnxJ.jpegw=500",
+            "ເສສວນໂຍກໂປ(10)": "https://i.imgur.com/hRSxKl1.jpegw=500",
+            "ເສສວນກຸ້ງ(10)": "https://i.imgur.com/PYmUHUx.jpegw=500",
+            "ນ້ຳດອງຕີນໄກ່(10)": "https://i.imgur.com/gEaO4BR.jpegw=500",
+            "ນ້ຳດອງຕີນໄກ່ໄທ(10)": "https://i.imgur.com/b158RE3.jpegw=500",
+            "ຜົງປີ້ງຈີນ ຟ້າ(10)": "https://i.imgur.com/fBnHh76.jpegw=500",
+            "ຜົງປີ້ງຈີນ ແດງ(10)": "https://i.imgur.com/BWnpqS7.jpegw=500",
+            "ເສັ້ນມັນຕົ້ນ(10)": "https://i.imgur.com/MssEz4g.jpeg",
+            "ແຜ່ນເຕົ້າຮູ້ ແຫ້ງ ໂລ": "https://i.imgur.com/KJoiL0l.jpegw=500",
+            "ເສັ້ນດຳ ເປົາ9ໂລ": "https://i.imgur.com/NgYCyyQ.jpegw=500",
+            "ເສັ້ນລ້ອນ ຕົ້ນແກ້ວ(10)": "https://i.imgur.com/Lqp3Xa8.jpeg",
+            "ເສັ້ນລ້ອນ ດອກຝ້າຍ(10)": "https://i.imgur.com/E7NeOxN.jpeg",
+            "ເສັ້ນແກ້ວ(12)": "https://i.imgur.com/EQgCUPj.jpegw=500",
+            "ເສັ້ນໝີ່ ຍົກສົດ": "https://i.imgur.com/Pi9Jcyi.jpegw=500",
+            "ເສັ້ນໝີ່ ເຫລືອງສົດ": "https://i.imgur.com/YnVfXd7.jpegw=500",
+            "ແຜ່ນກ້ຽວສົດ": "https://i.imgur.com/DvnOL6C.jpegw=500",
+            // ຮູບສິນຄ້າໃໝ່
+            "ມິນິຊາບູ 1ລັງ(25)": "https://i.imgur.com/mY2jiK6.jpeg",
+            "ວາຊາບິ": "https://i.imgur.com/QJVpoR4.jpeg"
+        };
+
+        // ============================================================
+        // STOCK
+        // ============================================================
+        function loadStock() {
+            const saved = localStorage.getItem('productStock');
+            if (saved) {
+                const stockData = JSON.parse(saved);
+                Object.keys(stockData).forEach(key => {
+                    if (productDetails[key]) {
+                        productDetails[key].stock = stockData[key];
+                    }
+                });
+            }
+        }
+
+        function saveStock() {
+            const stockData = {};
+            Object.keys(productDetails).forEach(key => {
+                stockData[key] = productDetails[key].stock;
+            });
+            localStorage.setItem('productStock', JSON.stringify(stockData));
+        }
+
+        function reduceStock(title, qty = 1) {
+            if (productDetails[title]) {
+                const current = productDetails[title].stock || 0;
+                if (current >= qty) {
+                    productDetails[title].stock = current - qty;
+                    saveStock();
+                    return true;
+                }
+                return false;
+            }
+            return false;
+        }
+
+        // ============================================================
+        // CART SYSTEM
+        // ============================================================
+        let cart = [];
+
+        function loadCart() {
+            const saved = localStorage.getItem('shoppingCart');
+            if (saved) {
+                try {
+                    cart = JSON.parse(saved);
+                } catch { cart = []; }
+            }
+            updateCartUI();
+        }
+
+        function saveCart() {
+            localStorage.setItem('shoppingCart', JSON.stringify(cart));
+            updateCartUI();
+        }
+
+        function addToCart(title, price, weight) {
+            const stock = productDetails[title]?.stock ?? 0;
+            if (stock <= 0) {
+                alert('ສິນຄ້ານີ້ໝົດສະຕອກແລ້ວ');
+                return;
+            }
+            const existing = cart.find(item => item.title === title);
+            if (existing) {
+                if (existing.qty < stock) {
+                    existing.qty += 1;
+                } else {
+                    alert('ຈຳນວນທີ່ເລືອກເກີນສະຕອກ');
+                    return;
+                }
+            } else {
+                cart.push({ title, price, weight, qty: 1 });
+            }
+            saveCart();
+        }
+
+        function removeFromCart(title) {
+            cart = cart.filter(item => item.title !== title);
+            saveCart();
+        }
+
+        function updateQty(title, delta) {
+            const item = cart.find(i => i.title === title);
+            if (!item) return;
+            const stock = productDetails[title]?.stock ?? 0;
+            const newQty = item.qty + delta;
+            if (newQty <= 0) {
+                removeFromCart(title);
+            } else if (newQty <= stock) {
+                item.qty = newQty;
+                saveCart();
+            } else {
+                alert('ຈຳນວນທີ່ເລືອກເກີນສະຕອກ');
+            }
+        }
+
+        function clearCart() {
+            if (cart.length === 0) return;
+            if (confirm('ທ່ານຕ້ອງການລຶບສິນຄ້າທັງໝົດໃນກະຕ່າແມ່ນບໍ່?')) {
+                cart = [];
+                saveCart();
+                renderCartModal();
+            }
+        }
+
+        function getCartTotal() {
+            return cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+        }
+
+        function updateCartUI() {
+            const count = cart.reduce((sum, i) => sum + i.qty, 0);
+            const badge = document.getElementById('cart-count');
+            if (badge) badge.textContent = count;
+            const modal = document.getElementById('cart-modal');
+            if (modal && !modal.classList.contains('hidden')) {
+                renderCartModal();
+            }
+        }
+
+        function toggleCart() {
+            const modal = document.getElementById('cart-modal');
+            modal.classList.toggle('hidden');
+            if (!modal.classList.contains('hidden')) {
+                renderCartModal();
+            }
+        }
+
+        function renderCartModal() {
+            const list = document.getElementById('cart-items-list');
+            const empty = document.getElementById('cart-empty');
+            const footer = document.getElementById('cart-footer');
+            const totalEl = document.getElementById('cart-total');
+
+            list.innerHTML = '';
+            if (cart.length === 0) {
+                empty.style.display = 'block';
+                footer.classList.add('hidden');
+                return;
+            }
+            empty.style.display = 'none';
+            footer.classList.remove('hidden');
+
+            cart.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'cart-item';
+                div.innerHTML = `
+                    <div class="flex-1">
+                        <div class="font-medium text-sm">${item.title}</div>
+                        <div class="text-xs text-slate-500">${item.weight} × ${item.qty}</div>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <button onclick="updateQty('${item.title}', -1)" class="qty-btn minus">−</button>
+                        <span class="w-6 text-center font-bold text-sm">${item.qty}</span>
+                        <button onclick="updateQty('${item.title}', 1)" class="qty-btn plus">+</button>
+                        <button onclick="removeFromCart('${item.title}')" class="text-red-400 hover:text-red-600 text-sm ml-1">🗑️</button>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+
+            totalEl.textContent = getCartTotal().toLocaleString() + ' ກີບ';
+        }
+
+        function checkoutCart() {
+            if (cart.length === 0) {
+                alert('ກະຕ່າຫວ່າງເປົ່າ');
+                return;
+            }
+            let outOfStock = [];
+            cart.forEach(item => {
+                const stock = productDetails[item.title]?.stock ?? 0;
+                if (stock < item.qty) {
+                    outOfStock.push(`${item.title} (ມີ ${stock}, ຕ້ອງການ ${item.qty})`);
+                }
+            });
+            if (outOfStock.length > 0) {
+                alert('ສິນຄ້າຕໍ່ໄປນີ້ສະຕອກບໍ່ພໍ:\n' + outOfStock.join('\n'));
+                return;
+            }
+
+            let msg = '🛒 *ລາຍການສັ່ງຊື້*\n\n';
+            let total = 0;
+            cart.forEach((item, idx) => {
+                const subtotal = item.price * item.qty;
+                total += subtotal;
+                msg += `${idx+1}. ${item.title} (${item.weight}) × ${item.qty} ຊຸດ = ${subtotal.toLocaleString()} ກີບ\n`;
+            });
+            msg += `\n💰 *ລາຄາລວມ: ${total.toLocaleString()} ກີບ*`;
+            msg += `\n\nກະລຸນາຢືນຢັນລາຍການ ແລະ ທີ່ຢູ່ຈັດສົ່ງ`;
+
+            const encoded = encodeURIComponent(msg);
+            const phone = '8562051628289';
+            const url = `https://api.whatsapp.com/send?phone=${phone}&text=${encoded}`;
+
+            let allSuccess = true;
+            cart.forEach(item => {
+                const ok = reduceStock(item.title, item.qty);
+                if (!ok) allSuccess = false;
+            });
+
+            if (allSuccess) {
+                cart = [];
+                saveCart();
+                toggleCart();
+                alert('✅ ກຽມຂໍ້ມູນສຳເລັດ! ກະລຸນາກົດ "Send" ໃນ WhatsApp ເພື່ອຢືນຢັນຄຳສັ່ງ');
+                window.open(url, '_blank');
+                renderProducts(getCurrentItems());
+            } else {
+                alert('❌ ການສັ່ງຊື້ລົ້ມເຫຼວ ກະລຸນາລອງໃໝ່');
+                loadStock();
+            }
+        }
+
+        // ============================================================
+        // PRODUCTS
+        // ============================================================
+        function validateProducts() {
+            const missing = [];
+            Object.keys(productData).forEach(cat => {
+                productData[cat].forEach(title => {
+                    if (!productDetails[title]) {
+                        missing.push(title);
+                        productDetails[title] = { weight: "1 ກິໂລ", price: 0, stock: 0 };
+                    }
+                });
+            });
+            return missing;
+        }
+
+        let products = [];
+        let currentFilter = 'all';
+        let currentSearch = '';
+
+        function initProducts() {
+            validateProducts();
+            const result = [];
+            const categoryNames = Object.keys(productData);
+            let totalProducts = 0;
+            categoryNames.forEach(cat => { totalProducts += productData[cat].length; });
+            const categoryIndexMap = {};
+            categoryNames.forEach(cat => { categoryIndexMap[cat] = 0; });
+            let productId = 1;
+            while (result.length < totalProducts) {
+                for (let catIdx = 0; catIdx < categoryNames.length && result.length < totalProducts; catIdx++) {
+                    const catName = categoryNames[catIdx];
+                    const nameList = productData[catName];
+                    const catObj = categories.find(c => c.name === catName);
+                    const catLabel = catObj ? catObj.label : catName;
+                    const currentIndex = categoryIndexMap[catName];
+                    if (currentIndex < nameList.length) {
+                        const baseName = nameList[currentIndex];
+                        const details = productDetails[baseName] || { weight: "1 ກິໂລ", price: 0, stock: 0 };
+                        let imageUrl = imageConfig[baseName] || "https://images.unsplash.com/photo-1541832676-9b763b0239ab?w=500";
+                        result.push({
+                            id: productId,
+                            title: baseName,
+                            category: catName,
+                            categoryLabel: catLabel,
+                            badgeClass: catObj ? catObj.badgeClass : "bg-gray-100 text-gray-700",
+                            weight: details.weight,
+                            priceKip: details.price.toLocaleString(),
+                            priceRaw: details.price,
+                            stock: details.stock || 0,
+                            image: imageUrl
+                        });
+                        categoryIndexMap[catName] = (categoryIndexMap[catName] + 1);
+                        productId++;
+                    }
+                }
+            }
+            return result;
+        }
+
+        function getCurrentItems() {
+            let filtered = products;
+            if (currentFilter !== 'all') {
+                filtered = filtered.filter(p => p.category === currentFilter);
+            }
+            if (currentSearch.trim() !== '') {
+                const q = currentSearch.toLowerCase();
+                filtered = filtered.filter(p => p.title.toLowerCase().includes(q));
+            }
+            return filtered;
+        }
+
+        function renderProducts(items) {
+            const grid = document.getElementById('product-grid');
+            const countDisplay = document.getElementById('product-count');
+            grid.innerHTML = '';
+            if (items.length === 0) {
+                grid.innerHTML =
+                    `<div class="col-span-full text-center py-12 text-slate-400">
+                        <p class="text-2xl mb-2">📦</p>
+                        <p>ບໍ່ມີສິນຄ້າໃນລະບົບ</p>
+                    </div>`;
+                countDisplay.textContent = '';
+                return;
+            }
+            items.forEach(item => {
+                const stock = productDetails[item.title]?.stock ?? 0;
+                const isOutOfStock = stock <= 0;
+                const card = `
+                    <div class="product-card bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex flex-col justify-between">
+                        <div>
+                            <img src="${item.image}" alt="${item.title}" class="w-full h-40 sm:h-48 object-cover" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1541832676-9b763b0239ab?w=500'">
+                            <div class="p-3 sm:p-4">
+                                <span class="text-xs ${item.badgeClass} font-semibold px-2.5 py-0.5 rounded-full">${item.categoryLabel}</span>
+                                <h3 class="font-bold text-sm sm:text-base mt-1 sm:mt-2 line-clamp-2">${item.title}</h3>
+                                <p class="text-slate-500 text-xs sm:text-sm mt-1">📦 ${item.weight}</p>
+                            </div>
+                        </div>
+                        <div class="p-3 sm:p-4 pt-0">
+                            <div class="text-base sm:text-xl font-bold text-blue-600 mb-2 sm:mb-3">${item.priceKip} ກີບ</div>
+                            ${isOutOfStock 
+                                ? `<button disabled class="bg-gray-400 text-white py-2 sm:py-3 rounded-lg text-xs sm:text-sm font-medium w-full cursor-not-allowed">ໝົດສິນຄ້າ</button>`
+                                : `<button onclick="addToCart('${item.title}', ${item.priceRaw}, '${item.weight}')" class="bg-blue-500 hover:bg-blue-600 text-white py-2 sm:py-3 rounded-lg text-xs sm:text-sm font-medium text-center block w-full transition">➕ ເພີ່ມໃສ່ກະຕ່າ</button>`
+                            }
+                        </div>
+                    </div>
+                `;
+                grid.insertAdjacentHTML('beforeend', card);
+            });
+            countDisplay.textContent = `ສະແດງ ${items.length} ລາຍການ (ທັງໝົດ ${products.length} ລາຍການ)`;
+        }
+
+        // ============================================================
+        // FILTER / SEARCH
+        // ============================================================
+        function filterCategory(cat) {
+            currentFilter = cat;
+            const items = getCurrentItems();
+            renderProducts(items);
+            document.querySelectorAll('.btn-filter').forEach(btn => {
+                btn.classList.remove('active', 'bg-blue-600', 'text-white', 'shadow');
+                btn.classList.add('bg-white', 'text-slate-600');
+            });
+            const buttons = document.querySelectorAll('.btn-filter');
+            const clickedBtn = Array.from(buttons).find(btn => {
+                const btnText = btn.textContent.trim();
+                if (cat === 'all') return btnText === 'ທັງໝົດ';
+                const found = categories.find(c => c.name === cat);
+                return found && btnText === found.label;
+            });
+            if (clickedBtn) {
+                clickedBtn.classList.remove('bg-white', 'text-slate-600');
+                clickedBtn.classList.add('active', 'bg-blue-600', 'text-white', 'shadow');
+            }
+        }
+
+        function searchProduct() {
+            currentSearch = document.getElementById('search-input').value;
+            renderProducts(getCurrentItems());
+        }
+
+        // ============================================================
+        // STOCK MANAGER (Admin)
+        // ============================================================
+        function showStockManager(requirePassword = true) {
+            if (requirePassword) {
+                const pwd = prompt('ກະລຸນາໃສ່ລະຫັດຜ່ານ:');
+                if (pwd !== '992019') {
+                    alert('ລະຫັດຜ່ານບໍ່ຖືກຕ້ອງ');
+                    return;
+                }
+            }
+            let html = `
+                <div class="col-span-full bg-white p-6 rounded-2xl shadow-lg">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-bold text-slate-800">📦 ຈັດການສະຕອກ</h2>
+                        <button onclick="closeStockManager()" class="bg-red-500 text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-red-600">ປິດ</button>
+                    </div>
+                    <div class="stock-manager space-y-2">
+            `;
+            const sortedKeys = Object.keys(productDetails).sort();
+            sortedKeys.forEach(title => {
+                const detail = productDetails[title];
+                const stock = detail.stock ?? 0;
+                html += `
+                    <div class="flex flex-wrap items-center gap-2 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                        <span class="flex-1 text-sm font-medium min-w-[120px]">${title}</span>
+                        <span class="text-sm w-12 text-center font-bold text-blue-600">${stock}</span>
+                        <button onclick="adjustStock('${title}', 1)" class="bg-green-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-green-600">+1</button>
+                        <button onclick="adjustStock('${title}', 5)" class="bg-green-600 text-white px-3 py-1 rounded-lg text-sm hover:bg-green-700">+5</button>
+                        <button onclick="adjustStock('${title}', -1)" class="bg-red-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-red-600">-1</button>
+                        <button onclick="adjustStock('${title}', -5)" class="bg-red-600 text-white px-3 py-1 rounded-lg text-sm hover:bg-red-700">-5</button>
+                        <button onclick="setStockZero('${title}')" class="bg-gray-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-gray-600">0</button>
+                    </div>
+                `;
+            });
+            html += `</div></div>`;
+            document.getElementById('product-grid').innerHTML = html;
+            document.getElementById('product-count').textContent = '';
+        }
+
+        function closeStockManager() {
+            renderProducts(getCurrentItems());
+        }
+
+        function adjustStock(title, change) {
+            if (productDetails[title]) {
+                const newStock = (productDetails[title].stock || 0) + change;
+                if (newStock >= 0) {
+                    productDetails[title].stock = newStock;
+                    saveStock();
+                    showStockManager(false);
+                } else {
+                    alert('ສະຕອກຕໍ່າກວ່າ 0 ບໍ່ໄດ້');
+                }
+            }
+        }
+
+        function setStockZero(title) {
+            if (productDetails[title]) {
+                if (confirm(`ຕັ້ງສະຕອກ ${title} ໃຫ້ເປັນ 0 ແມ່ນບໍ່?`)) {
+                    productDetails[title].stock = 0;
+                    saveStock();
+                    showStockManager(false);
+                }
+            }
+        }
+
+        // ============================================================
+        // RESET
+        // ============================================================
+        function resetFilterAndSearch() {
+            currentFilter = 'all';
+            currentSearch = '';
+            document.getElementById('search-input').value = '';
+            document.querySelectorAll('.btn-filter').forEach(btn => {
+                btn.classList.remove('active', 'bg-blue-600', 'text-white', 'shadow');
+                btn.classList.add('bg-white', 'text-slate-600');
+            });
+            const allBtn = document.querySelector('.btn-filter');
+            if (allBtn) {
+                allBtn.classList.remove('bg-white', 'text-slate-600');
+                allBtn.classList.add('active', 'bg-blue-600', 'text-white', 'shadow');
+            }
+            renderProducts(getCurrentItems());
+            alert(`✅ ຣີເຊັດສຳເລັດ! ສະແດງ ${getCurrentItems().length} ລາຍການ`);
+        }
+
+        // ============================================================
+        // INIT
+        // ============================================================
+        loadStock();
+        loadCart();
+        products = initProducts();
+        renderProducts(products);
+        const allBtn = document.querySelector('.btn-filter');
+        if (allBtn) {
+            allBtn.classList.add('active', 'bg-blue-600', 'text-white', 'shadow');
+        }
+        console.log('✅ ເວັບໄຊເລີ່ມຕົ້ນສຳເລັດ! ຈຳນວນສິນຄ້າ:', products.length);
+    </script>
+</body>
+</html>
